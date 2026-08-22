@@ -22,3 +22,6 @@ models/artifacts/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Claude Code context — never pushed
+.claudecontext/
