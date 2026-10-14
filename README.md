@@ -1,9 +1,52 @@
 # Telco Customer Churn Dashboard
 
-An end-to-end ML system that predicts customer churn using the IBM Telco dataset:
-a data pipeline loads the customers into PostgreSQL, a model is trained on them,
-a FastAPI backend serves predictions, and a React dashboard shows who is leaving
-and who is likely to leave next.
+[![CI](https://github.com/LAKWAN194/telco-churn-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/LAKWAN194/telco-churn-dashboard/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-model-EB5E28)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react&logoColor=black)
+
+**Find the telecom customers who are about to leave, and test what would keep them.**
+
+An end-to-end ML system built on the IBM Telco dataset: a data pipeline loads
+7,032 customers into PostgreSQL, an XGBoost model is trained on them, a FastAPI
+backend serves predictions, and a React dashboard shows who is leaving, who is
+likely to leave next, and what would change their minds.
+
+![The dashboard: headline numbers, churn rate by contract, the customers most likely to leave, a live prediction form and the model's test metrics](docs/images/dashboard.png)
+
+## What it does
+
+- **See who is leaving.** Headline numbers, plus churn rate by contract, tenure,
+  internet service, payment method or tech support.
+- **Find who is next.** Current customers ranked by the model's churn probability.
+- **Ask "what if?"** Load any at-risk customer into the form, change their
+  contract or services, and get a live prediction.
+- **Keep a record.** Every prediction is saved with the model version and
+  threshold that produced it.
+
+### What if?
+
+<p align="center">
+  <img src="docs/images/what-if-demo.gif" alt="Loading an at-risk customer into the form, predicting, then switching them to a two-year contract with tech support and predicting again" width="880">
+</p>
+
+Customer 4912-PIGUY is one month into a month-to-month fibre contract, with a
+94.8% chance of churning. Moving them to a two-year contract with tech support
+drops that to 46.1%, below the 59.7% threshold at which the model flags a customer.
+
+## How it works
+
+```mermaid
+flowchart LR
+    csv["IBM Telco CSV<br/>(Kaggle)"] -->|"pipeline/ingest.py<br/>clean + load"| db[("PostgreSQL<br/>customers")]
+    db -->|"models/train.py"| model["XGBoost pipeline<br/>+ decision threshold"]
+    model --> api["FastAPI"]
+    db <--> api
+    api -->|"saves every prediction"| preds[("PostgreSQL<br/>predictions")]
+    api <-->|"REST / JSON"| ui["React dashboard"]
+```
 
 ## Stack
 - Python, pandas, scikit-learn, XGBoost
@@ -37,8 +80,11 @@ Results on the 1,407 held-out customers (20% of the data):
 | Recall | 0.70 |
 | Precision | 0.57 |
 
-The chosen model was XGBoost, with a decision threshold of 0.60 picked to
-maximise F1 on out-of-fold predictions from the training data.
+The chosen model was XGBoost (cross-validated PR-AUC 0.660, against 0.647 for
+logistic regression), with a decision threshold of 0.60 picked to maximise F1 on
+out-of-fold predictions from the training data. The test set is used once, for
+the final scores. Of the 374 test customers who actually churned, the model
+flags 262; of the 458 it flags, 262 do churn.
 
 # Setup
 
@@ -129,6 +175,10 @@ http://localhost:8000/docs.
 
 Every prediction is saved to the `predictions` table with the model version and
 threshold that produced it.
+
+<p align="center">
+  <img src="docs/images/api-docs.png" alt="The interactive API docs at /docs, listing the prediction, customer and stats endpoints" width="720">
+</p>
 
 ## Run the dashboard
 
