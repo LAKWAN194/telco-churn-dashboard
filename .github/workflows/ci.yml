@@ -38,3 +38,55 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  ussd-gateway:
+    name: USSD gateway build and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ussd-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: ussd-gateway/pom.xml
+      # The integration test starts Redis with Testcontainers; GitHub's runners have Docker.
+      - run: ./mvnw -B verify
+
+  selfcare-app:
+    name: Self-care app build, unit tests and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: selfcare-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      # GitHub's Ubuntu runners include the Android SDK (ANDROID_HOME is set).
+      - run: ./gradlew assembleDebug testDebugUnitTest lintDebug
+
+  helm:
+    name: Helm chart lint and render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint deploy/helm/telco-retention
+      - run: helm template telco deploy/helm/telco-retention > /dev/null
+
+  images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose --profile apps --profile retention config --quiet
+      - run: docker compose --profile apps --profile retention build
