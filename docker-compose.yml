@@ -1,3 +1,10 @@
+# `docker compose up -d` starts only the database, as before.
+# Profiles add the rest (ports 8280-8287, 6382 and 19281 avoid the other projects):
+#   --profile apps         the API (:8281) and the dashboard (:8284)
+#   --profile retention    Redis, Redpanda (Kafka API) and the USSD gateway (:8280)
+#   --profile mlops        MLflow (:8285)
+#   --profile monitoring   Prometheus (:8286) and Grafana (:8287)
+
 services:
   db:
     image: postgres:15
@@ -12,5 +19,120 @@ services:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     restart: unless-stopped
 
+
+  api:
+    profiles: [apps]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-telco_churn}
+      CORS_ORIGINS: http://localhost:${DASHBOARD_PORT:-8284}
+    volumes:
+      - ./models/artifacts:/app/models/artifacts:ro
+    ports:
+      - "${API_PORT:-8281}:8000"
+    depends_on:
+      - db
+
+  dashboard:
+    profiles: [apps]
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:${API_PORT:-8281}
+    ports:
+      - "${DASHBOARD_PORT:-8284}:80"
+    depends_on:
+      - api
+
+  redis:
+    profiles: [retention]
+    image: redis:8.8-alpine
+    ports:
+      - "${REDIS_PORT:-6382}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redpanda:
+    profiles: [retention]
+    image: redpandadata/redpanda:v26.2.3
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19281
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:${KAFKA_PORT:-19281}
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "${KAFKA_PORT:-19281}:19281"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  ussd-gateway:
+    profiles: [retention]
+    build: ./ussd-gateway
+    environment:
+      USSD_REDIS_HOST: redis
+      USSD_REDIS_PORT: 6379
+    ports:
+      - "${USSD_PORT:-8280}:8280"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8280/actuator/health/liveness | grep -q UP"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mlflow:
+    profiles: [mlops]
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=sqlite:////mlflow/mlflow.db
+      - --artifacts-destination=/mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    ports:
+      - "${MLFLOW_PORT:-8285}:5000"
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.15.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT:-8286}:9090"
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:13.2.3
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-8287}:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
+  mlflow_data:
+  grafana_data:

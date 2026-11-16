@@ -1,0 +1,9 @@
+# Dashboards saved as JSON in monitoring/grafana/provisioning/dashboards/json/ are loaded at start-up.
+# Build one in the Grafana UI, export it as JSON, and save it there (week 5).
+apiVersion: 1
+providers:
+  - name: telco-retention
+    folder: Telco retention
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

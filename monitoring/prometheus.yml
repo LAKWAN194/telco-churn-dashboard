@@ -1,0 +1,14 @@
+# Prometheus scrape targets for the local stack (docker compose --profile monitoring).
+# Add each new service's metrics endpoint here as it is built.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: ussd-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["ussd-gateway:8280"]
