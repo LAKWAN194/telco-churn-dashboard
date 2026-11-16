@@ -1,0 +1,6 @@
+Installed {{ .Release.Name }}.
+
+Reach the services from your machine with port-forwarding, for example:
+  kubectl port-forward svc/{{ .Release.Name }}-dashboard 8284:80
+  kubectl port-forward svc/{{ .Release.Name }}-api 8281:{{ .Values.api.port }}
+  kubectl port-forward svc/{{ .Release.Name }}-ussd-gateway 8280:{{ .Values.ussdGateway.port }}

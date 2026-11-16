@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ussd-gateway
+  labels:
+    {{- include "telco.labels" (dict "root" . "component" "ussd-gateway") | nindent 4 }}
+spec:
+  selector:
+    {{- include "telco.selector" (dict "root" . "component" "ussd-gateway") | nindent 4 }}
+  ports:
+    - port: {{ .Values.ussdGateway.port }}
+      targetPort: {{ .Values.ussdGateway.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ussd-gateway
+  labels:
+    {{- include "telco.labels" (dict "root" . "component" "ussd-gateway") | nindent 4 }}
+spec:
+  replicas: {{ .Values.ussdGateway.replicas }}
+  selector:
+    matchLabels:
+      {{- include "telco.selector" (dict "root" . "component" "ussd-gateway") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "telco.labels" (dict "root" . "component" "ussd-gateway") | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: {{ .Values.ussdGateway.port | quote }}
+    spec:
+      containers:
+        - name: ussd-gateway
+          image: {{ .Values.ussdGateway.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.ussdGateway.port }}
+          env:
+            - name: USSD_REDIS_HOST
+              value: {{ .Release.Name }}-redis
+            - name: USSD_REDIS_PORT
+              value: "6379"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.ussdGateway.port }}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.ussdGateway.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.ussdGateway.resources | nindent 12 }}

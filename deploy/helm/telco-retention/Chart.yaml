@@ -1,0 +1,6 @@
+apiVersion: v2
+name: telco-retention
+description: The churn API, dashboard and USSD gateway, with Redis and PostgreSQL, for a local kind cluster
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

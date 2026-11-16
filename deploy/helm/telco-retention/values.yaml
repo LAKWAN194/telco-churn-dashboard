@@ -1,0 +1,42 @@
+# Settings for `helm install`. Override any of them with --set or a values file.
+#
+# Images are built locally and loaded into kind (see deploy/README.md), so the pull
+# policy is IfNotPresent and the tags are local ones.
+
+api:
+  image: telco/api:dev
+  replicas: 1
+  port: 8000
+  corsOrigins: http://localhost:8284
+  # The trained model is not in the image. Week 5 decides how it reaches the pod
+  # (MLflow registry, a volume, or an init container); until then /health reports
+  # model_trained: false.
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+dashboard:
+  image: telco/dashboard:dev
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { memory: 64Mi }
+
+ussdGateway:
+  image: telco/ussd-gateway:dev
+  replicas: 1
+  port: 8280
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+redis:
+  image: redis:8.8-alpine
+
+postgres:
+  image: postgres:15
+  database: telco_churn
+  user: postgres
+  # Local development only. Use a Secret managed outside the chart for anything shared.
+  password: change-me
+  storage: 1Gi
