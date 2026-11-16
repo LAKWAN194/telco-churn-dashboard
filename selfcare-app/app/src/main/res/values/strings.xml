@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Self-care</string>
+    <string name="home_intro">Your balance, bundles and offers. The screens arrive in week 4.</string>
+    <string name="feature_balance">Balance</string>
+    <string name="feature_bundles">Bundles</string>
+    <string name="feature_offers">Offer inbox</string>
+    <string name="feature_offline">Works offline</string>
+</resources>
