@@ -192,6 +192,13 @@ Open http://localhost:5173. The dashboard expects the API at
 http://localhost:8000; to change that, copy `frontend/.env.example` to
 `frontend/.env` and edit `VITE_API_URL`.
 
+## Next: the retention loop
+
+Work in progress on the `p2/retention-loop` branch: acting on the churn score through
+a USSD/SMS gateway simulator, measuring offers against a randomised holdout, MLflow,
+drift alerts, a Jetpack Compose self-care app, and Kubernetes. See
+[docs/retention-loop/](docs/retention-loop/README.md).
+
 ## Tests
 
 ```bash
